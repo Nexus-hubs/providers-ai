@@ -1,0 +1,874 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Neon Light Cycle Duel &mdash; Standalone</title>
+    <style>
+:root {
+  color-scheme: dark;
+  --bg: #080b1a;
+  --panel: rgba(19, 24, 48, 0.85);
+  --accent: #00f0ff;
+  --accent-soft: rgba(0, 240, 255, 0.28);
+  --accent-strong: rgba(0, 240, 255, 0.6);
+  --warning: #f7d046;
+  --player: #3bd8ff;
+  --ai: #f7b046;
+  --text: #f6f7fb;
+  --muted: #7983b0;
+  font-family: "Space Grotesk", "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: radial-gradient(circle at 20% 20%, rgba(0, 240, 255, 0.12), transparent 60%),
+    radial-gradient(circle at 80% 10%, rgba(247, 176, 70, 0.18), transparent 60%),
+    var(--bg);
+  color: var(--text);
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  padding: 2.5rem;
+}
+
+.app-shell {
+  width: min(1080px, 100%);
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  gap: 2rem;
+  backdrop-filter: blur(16px);
+}
+
+.chat-panel {
+  display: flex;
+  flex-direction: column;
+  border-radius: 24px;
+  padding: 1.5rem;
+  background: var(--panel);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 25px 40px rgba(8, 11, 26, 0.5);
+}
+
+.chat-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.chat-header h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.chat-header .subtitle {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.avatar {
+  width: 3rem;
+  height: 3rem;
+  display: grid;
+  place-items: center;
+  border-radius: 1rem;
+  background: linear-gradient(135deg, rgba(0, 240, 255, 0.4), rgba(247, 176, 70, 0.4));
+  font-size: 1.8rem;
+}
+
+.chat-log {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding-right: 0.5rem;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.message {
+  padding: 0.75rem 1rem;
+  border-radius: 1.2rem;
+  background: rgba(0, 240, 255, 0.08);
+  border: 1px solid rgba(0, 240, 255, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(0, 240, 255, 0.15);
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+
+.message.system {
+  align-self: flex-start;
+}
+
+.message.player {
+  align-self: flex-end;
+  background: rgba(59, 216, 255, 0.16);
+  border-color: rgba(59, 216, 255, 0.24);
+}
+
+.chat-footer {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}
+
+button {
+  appearance: none;
+  border: none;
+  border-radius: 999px;
+  padding: 0.75rem 1.4rem;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+button.primary {
+  background: linear-gradient(120deg, rgba(0, 240, 255, 0.8), rgba(0, 165, 255, 0.8));
+  color: var(--bg);
+  box-shadow: 0 12px 20px rgba(0, 240, 255, 0.3);
+}
+
+button.primary:not(:disabled):hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 28px rgba(0, 240, 255, 0.35);
+}
+
+button.ghost {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+button.ghost:not(:disabled):hover {
+  color: var(--text);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.stage {
+  position: relative;
+  display: grid;
+  place-items: center;
+  background: rgba(8, 11, 26, 0.6);
+  border-radius: 32px;
+  padding: 1.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 25px 45px rgba(8, 11, 26, 0.6);
+}
+
+canvas {
+  width: 100%;
+  height: auto;
+  border-radius: 24px;
+  background: radial-gradient(circle at center, rgba(0, 240, 255, 0.05), transparent 60%),
+    repeating-linear-gradient(
+      to right,
+      rgba(255, 255, 255, 0.04) 0,
+      rgba(255, 255, 255, 0.04) 1px,
+      transparent 1px,
+      transparent 40px
+    ),
+    repeating-linear-gradient(
+      to bottom,
+      rgba(255, 255, 255, 0.04) 0,
+      rgba(255, 255, 255, 0.04) 1px,
+      transparent 1px,
+      transparent 40px
+    ),
+    rgba(5, 8, 22, 0.92);
+  border: 1px solid rgba(0, 240, 255, 0.12);
+}
+
+.hud {
+  position: absolute;
+  inset: 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  pointer-events: none;
+  font-size: 0.95rem;
+}
+
+.score {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  background: rgba(8, 11, 26, 0.55);
+  padding: 0.75rem 1rem;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  min-width: 90px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+}
+
+.score strong {
+  font-size: 1.6rem;
+  color: var(--accent);
+}
+
+.status {
+  margin-top: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: rgba(0, 240, 255, 0.12);
+  border-radius: 999px;
+  border: 1px solid rgba(0, 240, 255, 0.2);
+  color: var(--accent);
+  font-weight: 500;
+  letter-spacing: 0.04em;
+}
+
+@media (max-width: 1080px) {
+  body {
+    padding: 1.5rem;
+  }
+
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .stage {
+    order: -1;
+  }
+}
+
+@media (max-width: 640px) {
+  body {
+    padding: 1rem;
+  }
+
+  .app-shell {
+    gap: 1rem;
+  }
+
+  .chat-panel {
+    padding: 1rem;
+  }
+
+  .stage {
+    padding: 1rem;
+  }
+}
+
+    </style>
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="chat-panel">
+        <header class="chat-header">
+          <div class="avatar" aria-hidden="true">⚡</div>
+          <div>
+            <h1>Neon Cycle Console</h1>
+            <p class="subtitle">Real-time telemetry feed</p>
+          </div>
+        </header>
+        <section class="chat-log" id="chat-log" aria-live="polite"></section>
+        <footer class="chat-footer">
+          <button id="start-button" class="primary">Start Duel</button>
+          <button id="reset-button" class="ghost" disabled>Reset</button>
+        </footer>
+      </aside>
+      <main class="stage">
+        <canvas id="arena" width="640" height="640" aria-label="Light cycle arena"></canvas>
+        <div class="hud">
+          <div class="score">
+            <span>Player</span>
+            <strong id="player-score">0</strong>
+          </div>
+          <div class="score">
+            <span>AI</span>
+            <strong id="ai-score">0</strong>
+          </div>
+          <div class="status" id="status">Awaiting pilots…</div>
+        </div>
+      </main>
+    </div>
+    <script type="module">
+const canvas = document.getElementById("arena");
+const ctx = canvas.getContext("2d");
+const chatLog = document.getElementById("chat-log");
+const statusEl = document.getElementById("status");
+const startButton = document.getElementById("start-button");
+const resetButton = document.getElementById("reset-button");
+const playerScoreEl = document.getElementById("player-score");
+const aiScoreEl = document.getElementById("ai-score");
+
+const GRID_SIZE = 32;
+const CELL_SIZE = canvas.width / GRID_SIZE;
+const STEP_INTERVAL = 140;
+
+const DIRECTIONS = {
+  up: { x: 0, y: -1 },
+  down: { x: 0, y: 1 },
+  left: { x: -1, y: 0 },
+  right: { x: 1, y: 0 },
+};
+
+const OPPOSITE = {
+  up: "down",
+  down: "up",
+  left: "right",
+  right: "left",
+};
+
+const styles = getComputedStyle(document.documentElement);
+const COLORS = {
+  grid: "rgba(7, 10, 24, 0.9)",
+  player: styles.getPropertyValue("--player").trim() || "#3bd8ff",
+  ai: styles.getPropertyValue("--ai").trim() || "#f7b046",
+  glow: "rgba(0, 240, 255, 0.25)",
+};
+
+class AudioController {
+  constructor() {
+    this.context = null;
+    this.masterGain = null;
+    this.ambience = null;
+    this.echoDelay = null;
+  }
+
+  async ready() {
+    if (!this.context) {
+      this.context = new (window.AudioContext || window.webkitAudioContext)();
+      this.masterGain = this.context.createGain();
+      this.masterGain.gain.value = 0.2;
+      this.masterGain.connect(this.context.destination);
+      this.echoDelay = this.context.createDelay(0.75);
+      const feedback = this.context.createGain();
+      feedback.gain.value = 0.45;
+      this.echoDelay.connect(feedback);
+      feedback.connect(this.echoDelay);
+      this.echoDelay.connect(this.masterGain);
+    }
+    if (this.context.state === "suspended") {
+      await this.context.resume();
+    }
+  }
+
+  startAmbience() {
+    if (!this.context || this.ambience) return;
+    const osc = this.context.createOscillator();
+    const lfo = this.context.createOscillator();
+    const lfoGain = this.context.createGain();
+    const filter = this.context.createBiquadFilter();
+
+    osc.type = "triangle";
+    osc.frequency.value = 38;
+
+    lfo.type = "sine";
+    lfo.frequency.value = 0.07;
+    lfoGain.gain.value = 12;
+
+    filter.type = "lowpass";
+    filter.frequency.value = 420;
+    filter.Q.value = 8;
+
+    lfo.connect(lfoGain);
+    lfoGain.connect(osc.frequency);
+
+    const reverb = this.context.createConvolver();
+    reverb.buffer = this.createImpulseResponse(2.8, 0.45);
+
+    osc.connect(filter);
+    filter.connect(reverb);
+    reverb.connect(this.echoDelay);
+
+    osc.start();
+    lfo.start();
+    this.ambience = { osc, lfo, filter, reverb };
+  }
+
+  stopAmbience() {
+    if (!this.ambience) return;
+    const { osc, lfo } = this.ambience;
+    osc.stop();
+    lfo.stop();
+    this.ambience = null;
+  }
+
+  playTurn(color) {
+    if (!this.context) return;
+    const osc = this.context.createOscillator();
+    const gain = this.context.createGain();
+    osc.type = "square";
+    osc.frequency.setValueAtTime(440, this.context.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(220, this.context.currentTime + 0.18);
+    gain.gain.setValueAtTime(0.0, this.context.currentTime);
+    gain.gain.linearRampToValueAtTime(0.25, this.context.currentTime + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.001, this.context.currentTime + 0.3);
+
+    const filter = this.context.createBiquadFilter();
+    filter.type = "bandpass";
+    filter.frequency.value = color === "player" ? 1000 : 620;
+    filter.Q.value = 10;
+
+    osc.connect(filter);
+    filter.connect(gain);
+    gain.connect(this.echoDelay);
+
+    osc.start();
+    osc.stop(this.context.currentTime + 0.35);
+  }
+
+  playCrash() {
+    if (!this.context) return;
+    const noiseBuffer = this.createNoiseBuffer();
+    const noiseSource = this.context.createBufferSource();
+    noiseSource.buffer = noiseBuffer;
+
+    const filter = this.context.createBiquadFilter();
+    filter.type = "bandpass";
+    filter.frequency.value = 180;
+    filter.Q.value = 2;
+
+    const gain = this.context.createGain();
+    gain.gain.setValueAtTime(0.0, this.context.currentTime);
+    gain.gain.linearRampToValueAtTime(0.6, this.context.currentTime + 0.03);
+    gain.gain.exponentialRampToValueAtTime(0.001, this.context.currentTime + 1.2);
+
+    noiseSource.connect(filter);
+    filter.connect(gain);
+    gain.connect(this.echoDelay);
+
+    noiseSource.start();
+    noiseSource.stop(this.context.currentTime + 1.2);
+  }
+
+  createImpulseResponse(duration, decay) {
+    const sampleRate = this.context.sampleRate;
+    const length = sampleRate * duration;
+    const impulse = this.context.createBuffer(2, length, sampleRate);
+    for (let channel = 0; channel < impulse.numberOfChannels; channel++) {
+      const channelData = impulse.getChannelData(channel);
+      for (let i = 0; i < length; i++) {
+        const n = Math.random() * 2 - 1;
+        channelData[i] = n * Math.pow(1 - i / length, decay);
+      }
+    }
+    return impulse;
+  }
+
+  createNoiseBuffer() {
+    const bufferSize = this.context.sampleRate;
+    const buffer = this.context.createBuffer(1, bufferSize, this.context.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+      data[i] = Math.random() * 2 - 1;
+    }
+    return buffer;
+  }
+}
+
+const audio = new AudioController();
+
+let animationId = null;
+let lastTime = 0;
+let running = false;
+let roundActive = false;
+let occupied = new Set();
+let playerScore = 0;
+let aiScore = 0;
+
+let player;
+let ai;
+let roundTimeout = null;
+
+const chatPhrases = {
+  intro: [
+    "Welcome pilot. Secure your trajectory and maintain vector discipline.",
+    "Neon arena pressurized. Awaiting ignition command.",
+    "Grid integrity confirmed. Sensors primed for collision telemetry.",
+  ],
+  roundStart: [
+    "New round initiated. Execute with precision.",
+    "Engage engines. The grid awaits.",
+    "Synapse link calibrated. Ride the photon wave.",
+  ],
+  playerWin: [
+    "Player cycle victorious. Carbon trails shimmer in your wake.",
+    "Neural latency minimal. Human reflex prevails.",
+    "Competitor defragmented. Scoreboard ascends in your favor.",
+  ],
+  aiWin: [
+    "AI cycle dominates. Predictive matrices perfected.",
+    "Human pilot destabilized. Autonomous control successful.",
+    "Strategic overrun detected. Synthetic rider claims the grid.",
+  ],
+  draw: [
+    "Mutual annihilation. Both cycles disperse into photons.",
+    "Simultaneous impact. Grid resets to neutral.",
+    "No victor. Echoes reverberate through the neon fog.",
+  ],
+};
+
+function postMessage(text, type = "system") {
+  const bubble = document.createElement("article");
+  bubble.className = `message ${type}`;
+  bubble.textContent = text;
+  chatLog.appendChild(bubble);
+  chatLog.scrollTo({ top: chatLog.scrollHeight, behavior: "smooth" });
+}
+
+function randomFrom(list) {
+  return list[Math.floor(Math.random() * list.length)];
+}
+
+function keyFromCoord({ x, y }) {
+  return `${x},${y}`;
+}
+
+function initRound() {
+  if (roundTimeout) {
+    clearTimeout(roundTimeout);
+    roundTimeout = null;
+  }
+  occupied = new Set();
+  const midY = Math.floor(GRID_SIZE / 2);
+
+  const playerSegments = [
+    { x: 5, y: midY },
+    { x: 4, y: midY },
+    { x: 3, y: midY },
+  ];
+  playerSegments.forEach((seg) => occupied.add(keyFromCoord(seg)));
+  player = {
+    direction: "right",
+    nextDirection: "right",
+    segments: playerSegments,
+    color: COLORS.player,
+    alive: true,
+  };
+
+  const aiSegments = [
+    { x: GRID_SIZE - 6, y: midY },
+    { x: GRID_SIZE - 5, y: midY },
+    { x: GRID_SIZE - 4, y: midY },
+  ];
+  aiSegments.forEach((seg) => occupied.add(keyFromCoord(seg)));
+  ai = {
+    direction: "left",
+    nextDirection: "left",
+    segments: aiSegments,
+    color: COLORS.ai,
+    alive: true,
+  };
+
+  roundActive = true;
+  statusEl.textContent = "Engines ignited. Maintain velocity.";
+  postMessage(randomFrom(chatPhrases.roundStart));
+  draw();
+}
+
+function draw() {
+  ctx.fillStyle = COLORS.grid;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  const drawCycle = (cycle, glowColor) => {
+    ctx.lineJoin = "round";
+    ctx.lineCap = "round";
+    ctx.lineWidth = CELL_SIZE * 0.78;
+    ctx.shadowBlur = CELL_SIZE * 0.6;
+    ctx.shadowColor = glowColor;
+    ctx.strokeStyle = cycle.color;
+
+    ctx.beginPath();
+    cycle.segments.forEach((segment, index) => {
+      const cx = segment.x * CELL_SIZE + CELL_SIZE / 2;
+      const cy = segment.y * CELL_SIZE + CELL_SIZE / 2;
+      if (index === 0) {
+        ctx.moveTo(cx, cy);
+      } else {
+        ctx.lineTo(cx, cy);
+      }
+    });
+    ctx.stroke();
+
+    const head = cycle.segments[0];
+    const hx = head.x * CELL_SIZE + CELL_SIZE / 2;
+    const hy = head.y * CELL_SIZE + CELL_SIZE / 2;
+    const radius = CELL_SIZE * 0.42;
+
+    ctx.fillStyle = cycle.color;
+    ctx.shadowBlur = CELL_SIZE * 0.8;
+    ctx.shadowColor = glowColor;
+    ctx.beginPath();
+    ctx.arc(hx, hy, radius, 0, Math.PI * 2);
+    ctx.fill();
+  };
+
+  drawCycle(player, "rgba(59, 216, 255, 0.55)");
+  drawCycle(ai, "rgba(247, 176, 70, 0.55)");
+
+  ctx.shadowBlur = 0;
+}
+
+function update(timestamp) {
+  if (!roundActive) return;
+  if (timestamp - lastTime < STEP_INTERVAL) return;
+  lastTime = timestamp;
+
+  updateDirection(player);
+  updateDirection(ai, true);
+
+  const playerNext = computeNext(player);
+  const aiNext = computeNext(ai);
+
+  const collisions = new Map();
+
+  evaluateCollision(player, playerNext, collisions);
+  evaluateCollision(ai, aiNext, collisions);
+
+  if (playerNext.key === aiNext.key && player.alive && ai.alive) {
+    collisions.set("player", true);
+    collisions.set("ai", true);
+  }
+
+  if (!collisions.get("player")) {
+    advanceCycle(player, playerNext);
+  } else {
+    player.alive = false;
+  }
+
+  if (!collisions.get("ai")) {
+    advanceCycle(ai, aiNext);
+  } else {
+    ai.alive = false;
+  }
+
+  draw();
+  resolveRound();
+}
+
+function updateDirection(cycle, isAI = false) {
+  if (!cycle.alive) return;
+  if (isAI) {
+    const decision = chooseAIDirection();
+    cycle.nextDirection = decision;
+    if (cycle.nextDirection !== cycle.direction) {
+      audio.playTurn("ai");
+    }
+  } else if (cycle.nextDirection !== cycle.direction) {
+    audio.playTurn("player");
+  }
+  cycle.direction = cycle.nextDirection;
+}
+
+function computeNext(cycle) {
+  const dir = DIRECTIONS[cycle.direction];
+  const head = cycle.segments[0];
+  const next = { x: head.x + dir.x, y: head.y + dir.y };
+  return { ...next, key: keyFromCoord(next) };
+}
+
+function evaluateCollision(cycle, next, collisions) {
+  if (!cycle.alive) {
+    collisions.set(cycle === player ? "player" : "ai", true);
+    return;
+  }
+  if (next.x < 0 || next.y < 0 || next.x >= GRID_SIZE || next.y >= GRID_SIZE) {
+    collisions.set(cycle === player ? "player" : "ai", true);
+    return;
+  }
+  if (occupied.has(next.key)) {
+    collisions.set(cycle === player ? "player" : "ai", true);
+  }
+}
+
+function advanceCycle(cycle, next) {
+  cycle.segments.unshift({ x: next.x, y: next.y });
+  cycle.head = cycle.segments[0];
+  occupied.add(next.key);
+}
+
+function resolveRound() {
+  if (player.alive && ai.alive) return;
+
+  roundActive = false;
+  audio.playCrash();
+
+  if (!player.alive && !ai.alive) {
+    statusEl.textContent = "Mutual impact detected. Systems recalibrating.";
+    postMessage(randomFrom(chatPhrases.draw));
+  } else if (!player.alive) {
+    aiScore += 1;
+    aiScoreEl.textContent = aiScore;
+    statusEl.textContent = "AI ascendant. Prepare for next challenge.";
+    postMessage(randomFrom(chatPhrases.aiWin));
+  } else if (!ai.alive) {
+    playerScore += 1;
+    playerScoreEl.textContent = playerScore;
+    statusEl.textContent = "Human pilot victorious. Momentum sustained.";
+    postMessage(randomFrom(chatPhrases.playerWin), "player");
+  }
+
+  roundTimeout = setTimeout(() => {
+    roundTimeout = null;
+    if (running) {
+      initRound();
+    }
+  }, 1600);
+}
+
+function chooseAIDirection() {
+  const options = ["forward", "left", "right"];
+  const map = {
+    up: { forward: "up", left: "left", right: "right" },
+    down: { forward: "down", left: "right", right: "left" },
+    left: { forward: "left", left: "down", right: "up" },
+    right: { forward: "right", left: "up", right: "down" },
+  };
+
+  const current = ai.direction;
+
+  const scored = options
+    .map((option) => {
+      const dirName = map[current][option];
+      const dir = DIRECTIONS[dirName];
+      const head = ai.segments[0];
+      const next = { x: head.x + dir.x, y: head.y + dir.y };
+      const key = keyFromCoord(next);
+      let score = 0;
+
+      if (next.x < 0 || next.y < 0 || next.x >= GRID_SIZE || next.y >= GRID_SIZE) {
+        score -= 100;
+      } else if (occupied.has(key)) {
+        score -= 80;
+      } else {
+        score += floodFillScore(next, 12);
+      }
+      return { dirName, score };
+    })
+    .sort((a, b) => b.score - a.score);
+
+  const bestScore = scored[0].score;
+  const viable = scored.filter((item) => item.score >= bestScore - 10);
+  const choice = viable[Math.floor(Math.random() * viable.length)];
+  return choice.dirName;
+}
+
+function floodFillScore(start, depth) {
+  const visited = new Set();
+  const queue = [{ ...start, d: 0 }];
+  let score = 0;
+
+  while (queue.length) {
+    const node = queue.shift();
+    const key = keyFromCoord(node);
+    if (visited.has(key) || node.d > depth) continue;
+    visited.add(key);
+
+    if (node.x < 0 || node.y < 0 || node.x >= GRID_SIZE || node.y >= GRID_SIZE) continue;
+    if (occupied.has(key)) continue;
+
+    score += 1;
+
+    Object.values(DIRECTIONS).forEach((dir) => {
+      queue.push({ x: node.x + dir.x, y: node.y + dir.y, d: node.d + 1 });
+    });
+  }
+
+  return score;
+}
+
+function handleKeyDown(event) {
+  if (!roundActive) return;
+  const keyMap = {
+    ArrowUp: "up",
+    ArrowDown: "down",
+    ArrowLeft: "left",
+    ArrowRight: "right",
+    w: "up",
+    s: "down",
+    a: "left",
+    d: "right",
+  };
+  const direction = keyMap[event.key];
+  if (!direction) return;
+  if (direction === OPPOSITE[player.direction]) return;
+  if (direction === player.nextDirection) return;
+  player.nextDirection = direction;
+}
+
+function loop(timestamp) {
+  if (!running) return;
+  animationId = requestAnimationFrame(loop);
+  update(timestamp);
+}
+
+async function startGame() {
+  await audio.ready();
+  audio.startAmbience();
+  running = true;
+  lastTime = performance.now();
+  initRound();
+  postMessage(randomFrom(chatPhrases.intro));
+  statusEl.textContent = "Pilot linked. Use arrow keys or WASD to steer.";
+  startButton.disabled = true;
+  resetButton.disabled = false;
+  if (!animationId) {
+    animationId = requestAnimationFrame(loop);
+  }
+}
+
+function resetGame() {
+  running = false;
+  roundActive = false;
+  if (roundTimeout) {
+    clearTimeout(roundTimeout);
+    roundTimeout = null;
+  }
+  if (animationId) {
+    cancelAnimationFrame(animationId);
+    animationId = null;
+  }
+  audio.stopAmbience();
+  audio.playCrash();
+  playerScore = 0;
+  aiScore = 0;
+  playerScoreEl.textContent = "0";
+  aiScoreEl.textContent = "0";
+  statusEl.textContent = "Awaiting pilots…";
+  chatLog.innerHTML = "";
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  postMessage("Systems reset. Tap \"Start Duel\" to enter the grid.");
+  startButton.disabled = false;
+  resetButton.disabled = true;
+  occupied = new Set();
+}
+
+startButton.addEventListener("click", () => {
+  if (!running) {
+    startGame();
+  }
+});
+
+resetButton.addEventListener("click", resetGame);
+
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden && running) {
+    resetGame();
+    postMessage("Session paused due to visibility change.");
+  }
+});
+
+document.addEventListener("keydown", handleKeyDown);
+
+postMessage("Systems idle. Press \"Start Duel\" to deploy.");
+
+    </script>
+  </body>
+</html>
