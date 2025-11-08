@@ -1,0 +1,1370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TRON Light Cycles</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: linear-gradient(180deg, #000814 0%, #001d3d 50%, #000814 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'Orbitron', 'Courier New', monospace;
+            color: #00d9ff;
+            overflow: hidden;
+        }
+
+        #gameContainer {
+            text-align: center;
+            position: relative;
+        }
+
+        #canvas {
+            border: 3px solid #00d9ff;
+            box-shadow: 
+                0 0 30px #00d9ff, 
+                0 0 60px rgba(0, 217, 255, 0.5),
+                inset 0 0 30px rgba(0, 100, 150, 0.2);
+            background: radial-gradient(circle at 50% 50%, #001529, #000000);
+            border-radius: 5px;
+        }
+
+        #info {
+            margin-top: 25px;
+            display: flex;
+            justify-content: space-between;
+            max-width: 900px;
+            gap: 30px;
+        }
+
+        .player-info {
+            flex: 1;
+            padding: 20px;
+            border: 2px solid;
+            box-shadow: 0 0 20px;
+            background: rgba(0, 10, 20, 0.9);
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+        }
+
+        .player1 {
+            border-color: #ff0040;
+            box-shadow: 0 0 20px #ff0040;
+            color: #ff0040;
+        }
+
+        .player2 {
+            border-color: #00d9ff;
+            box-shadow: 0 0 20px #00d9ff;
+            color: #00d9ff;
+        }
+
+        h1 {
+            font-size: 2.5em;
+            text-shadow: 0 0 20px #00d9ff, 0 0 40px #00d9ff;
+            margin-bottom: 20px;
+            letter-spacing: 8px;
+            font-weight: 900;
+        }
+
+        h3 {
+            font-size: 1.3em;
+            margin-bottom: 10px;
+            letter-spacing: 2px;
+        }
+
+        #controls {
+            margin-top: 20px;
+            font-size: 1em;
+            color: #00d9ff;
+            text-shadow: 0 0 10px #00d9ff;
+        }
+
+        #gameOver {
+            display: none;
+            margin-top: 20px;
+            font-size: 2em;
+            text-shadow: 0 0 20px #ff0040;
+            animation: pulse 1s infinite;
+            color: #ff0040;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .score {
+            font-size: 1.5em;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+
+        .label {
+            font-size: 0.9em;
+            opacity: 0.8;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <h1>⚡ TRON ⚡</h1>
+        <canvas id="canvas" width="900" height="600"></canvas>
+        
+        <div id="info">
+            <div class="player-info player1">
+                <h3>🏍️ YOU (RED)</h3>
+                <div class="score">Score: <span id="score1">0</span></div>
+                <div class="label">Arrow Keys to Control</div>
+            </div>
+            <div class="player-info player2">
+                <h3>🤖 AI (BLUE)</h3>
+                <div class="score">Score: <span id="score2">0</span></div>
+                <div class="label">Computer Opponent</div>
+            </div>
+        </div>
+
+        <div id="controls">
+            <div style="margin-bottom: 10px;">⌨️ Use ARROW KEYS to steer your light cycle</div>
+            <div>Press SPACE to start • Avoid walls, trails, tanks, and projectiles!</div>
+            <div style="margin-top: 5px; color: #ff6b00;">⚠️ TANKS SHOOT IN ALL DIRECTIONS!</div>
+        </div>
+
+        <div id="gameOver"></div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const score1El = document.getElementById('score1');
+        const score2El = document.getElementById('score2');
+        const gameOverEl = document.getElementById('gameOver');
+
+        const GRID_SIZE = 10;
+        const COLS = canvas.width / GRID_SIZE;
+        const ROWS = canvas.height / GRID_SIZE;
+        const GAME_SPEED = 80;
+
+        let gameLoop;
+        let gameRunning = false;
+        let grid = [];
+        let projectiles = [];
+        let particles = [];
+        
+        // Particle system for advanced graphics
+        class Particle {
+            constructor(x, y, color, velocity = {x: 0, y: 0}) {
+                this.x = x;
+                this.y = y;
+                this.vx = velocity.x + (Math.random() - 0.5) * 2;
+                this.vy = velocity.y + (Math.random() - 0.5) * 2;
+                this.color = color;
+                this.life = 1.0;
+                this.size = Math.random() * 3 + 2;
+                this.decay = Math.random() * 0.02 + 0.01;
+            }
+            
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.life -= this.decay;
+                this.vx *= 0.98;
+                this.vy *= 0.98;
+            }
+            
+            draw() {
+                if (this.life <= 0) return;
+                
+                ctx.save();
+                ctx.globalAlpha = this.life;
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = this.color;
+                
+                const gradient = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.size);
+                gradient.addColorStop(0, this.color);
+                gradient.addColorStop(1, this.color + '00');
+                
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+        
+        function createExplosion(x, y, color, count = 20) {
+            for (let i = 0; i < count; i++) {
+                const angle = (Math.PI * 2 * i) / count;
+                const speed = Math.random() * 3 + 2;
+                particles.push(new Particle(x, y, color, {
+                    x: Math.cos(angle) * speed,
+                    y: Math.sin(angle) * speed
+                }));
+            }
+        }
+        
+        function updateParticles() {
+            for (let i = particles.length - 1; i >= 0; i--) {
+                particles[i].update();
+                if (particles[i].life <= 0) {
+                    particles.splice(i, 1);
+                }
+            }
+        }
+        
+        function drawParticles() {
+            particles.forEach(p => p.draw());
+        }
+        
+        // Sound effects and music using Web Audio API
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        let musicGain = audioContext.createGain();
+        musicGain.gain.value = 0.2;
+        musicGain.connect(audioContext.destination);
+        
+        let musicPlaying = false;
+        let kickInterval;
+        let bassInterval;
+        let hihatInterval;
+        let synthInterval;
+        
+        // Techno background music with beats
+        function startBackgroundMusic() {
+            if (musicPlaying) return;
+            musicPlaying = true;
+            
+            let beatCount = 0;
+            
+            // Kick drum (techno beat)
+            kickInterval = setInterval(() => {
+                if (!musicPlaying) return;
+                const kick = audioContext.createOscillator();
+                const kickGain = audioContext.createGain();
+                
+                kick.connect(kickGain);
+                kickGain.connect(musicGain);
+                
+                kick.frequency.setValueAtTime(150, audioContext.currentTime);
+                kick.frequency.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+                kick.type = 'sine';
+                
+                kickGain.gain.setValueAtTime(1, audioContext.currentTime);
+                kickGain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+                
+                kick.start(audioContext.currentTime);
+                kick.stop(audioContext.currentTime + 0.5);
+            }, 400); // 150 BPM
+            
+            // Hi-hat
+            hihatInterval = setInterval(() => {
+                if (!musicPlaying) return;
+                const hihat = audioContext.createOscillator();
+                const hihatGain = audioContext.createGain();
+                
+                hihat.connect(hihatGain);
+                hihatGain.connect(musicGain);
+                
+                hihat.frequency.value = 8000;
+                hihat.type = 'square';
+                
+                hihatGain.gain.setValueAtTime(0.1, audioContext.currentTime);
+                hihatGain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.05);
+                
+                hihat.start(audioContext.currentTime);
+                hihat.stop(audioContext.currentTime + 0.05);
+            }, 200);
+            
+            // Bassline (techno style)
+            const bassNotes = [110, 110, 130, 98, 110, 110, 146.8, 98];
+            let bassIndex = 0;
+            bassInterval = setInterval(() => {
+                if (!musicPlaying) return;
+                const bass = audioContext.createOscillator();
+                const bassGain = audioContext.createGain();
+                
+                bass.connect(bassGain);
+                bassGain.connect(musicGain);
+                
+                bass.frequency.value = bassNotes[bassIndex % bassNotes.length];
+                bass.type = 'sawtooth';
+                
+                bassGain.gain.setValueAtTime(0.4, audioContext.currentTime);
+                bassGain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+                
+                bass.start(audioContext.currentTime);
+                bass.stop(audioContext.currentTime + 0.3);
+                
+                bassIndex++;
+            }, 400);
+            
+            // Synth lead (techno arpeggio)
+            const synthNotes = [440, 523, 659, 880, 659, 523];
+            let synthIndex = 0;
+            synthInterval = setInterval(() => {
+                if (!musicPlaying) return;
+                const synth = audioContext.createOscillator();
+                const synthGain = audioContext.createGain();
+                
+                synth.connect(synthGain);
+                synthGain.connect(musicGain);
+                
+                synth.frequency.value = synthNotes[synthIndex % synthNotes.length];
+                synth.type = 'square';
+                
+                synthGain.gain.setValueAtTime(0.15, audioContext.currentTime);
+                synthGain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.15);
+                
+                synth.start(audioContext.currentTime);
+                synth.stop(audioContext.currentTime + 0.15);
+                
+                synthIndex++;
+            }, 200);
+        }
+        
+        function stopBackgroundMusic() {
+            musicPlaying = false;
+            if (kickInterval) clearInterval(kickInterval);
+            if (bassInterval) clearInterval(bassInterval);
+            if (hihatInterval) clearInterval(hihatInterval);
+            if (synthInterval) clearInterval(synthInterval);
+        }
+        
+        function playSound(frequency, duration, type = 'sine', volume = 0.3) {
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.value = frequency;
+            oscillator.type = type;
+            
+            gainNode.gain.setValueAtTime(volume, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + duration);
+        }
+        
+        function playMoveSound() {
+            playSound(1000, 0.05, 'square', 0.2);
+        }
+        
+        function playCrashSound() {
+            playSound(100, 0.5, 'sawtooth', 0.5);
+            setTimeout(() => playSound(50, 0.3, 'sawtooth', 0.4), 100);
+        }
+        
+        function playShootSound() {
+            playSound(600, 0.1, 'square', 0.3);
+            setTimeout(() => playSound(400, 0.1, 'square', 0.2), 50);
+        }
+        
+        function playStartSound() {
+            playSound(400, 0.1, 'sine');
+            setTimeout(() => playSound(600, 0.1, 'sine'), 100);
+            setTimeout(() => playSound(800, 0.2, 'sine'), 200);
+            setTimeout(() => startBackgroundMusic(), 300);
+        }
+        
+        let player1 = {
+            x: 20,
+            y: 30,
+            dx: 1,
+            dy: 0,
+            trail: [],
+            color: '#ff0040',
+            glowColor: 'rgba(255, 0, 64, 0.8)',
+            alive: true,
+            score: 0,
+            isAI: false
+        };
+
+        let player2 = {
+            x: 70,
+            y: 30,
+            dx: -1,
+            dy: 0,
+            trail: [],
+            color: '#00d9ff',
+            glowColor: 'rgba(0, 217, 255, 0.8)',
+            alive: true,
+            score: 0,
+            isAI: true
+        };
+
+        let tanks = [];
+
+        // Initialize grid
+        function initGrid() {
+            grid = [];
+            for (let y = 0; y < ROWS; y++) {
+                grid[y] = [];
+                for (let x = 0; x < COLS; x++) {
+                    grid[y][x] = 0; // 0 = empty, 1 = player1, 2 = player2, 3 = tank
+                }
+            }
+        }
+
+        // Create tanks with Tron styling - fewer but they shoot!
+        function createTanks() {
+            tanks = [];
+            const numTanks = 3; // Reduced number but they shoot!
+            
+            for (let i = 0; i < numTanks; i++) {
+                let x, y;
+                let validPosition = false;
+                
+                while (!validPosition) {
+                    x = Math.floor(Math.random() * (COLS - 10)) + 5;
+                    y = Math.floor(Math.random() * (ROWS - 10)) + 5;
+                    
+                    // Check if position is far from players
+                    const dist1 = Math.abs(x - player1.x) + Math.abs(y - player1.y);
+                    const dist2 = Math.abs(x - player2.x) + Math.abs(y - player2.y);
+                    
+                    if (dist1 > 25 && dist2 > 25) {
+                        validPosition = true;
+                    }
+                }
+                
+                tanks.push({ 
+                    x, 
+                    y, 
+                    size: 5,
+                    shootTimer: 0,
+                    shootInterval: 60 + Math.floor(Math.random() * 40) // Shoot every 60-100 frames
+                });
+                
+                // Mark grid
+                for (let ty = 0; ty < 5; ty++) {
+                    for (let tx = 0; tx < 5; tx++) {
+                        if (y + ty < ROWS && x + tx < COLS) {
+                            grid[y + ty][x + tx] = 3;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Tank shooting logic
+        function updateTanks() {
+            tanks.forEach(tank => {
+                tank.shootTimer++;
+                
+                if (tank.shootTimer >= tank.shootInterval) {
+                    tank.shootTimer = 0;
+                    shootProjectile(tank);
+                }
+            });
+        }
+
+        // Create projectile from tank
+        function shootProjectile(tank) {
+            const tankCenterX = tank.x + tank.size / 2;
+            const tankCenterY = tank.y + tank.size / 2;
+            
+            // Create explosion particles at tank
+            createExplosion(
+                tankCenterX * GRID_SIZE, 
+                tankCenterY * GRID_SIZE, 
+                '#ff6b00', 
+                15
+            );
+            
+            // Shoot in 4 directions
+            const directions = [
+                { dx: 1, dy: 0 },
+                { dx: -1, dy: 0 },
+                { dx: 0, dy: 1 },
+                { dx: 0, dy: -1 }
+            ];
+            
+            directions.forEach(dir => {
+                projectiles.push({
+                    x: tankCenterX,
+                    y: tankCenterY,
+                    dx: dir.dx * 0.5,
+                    dy: dir.dy * 0.5,
+                    life: 100
+                });
+            });
+            
+            playShootSound();
+        }
+
+        // Update projectiles
+        function updateProjectiles() {
+            for (let i = projectiles.length - 1; i >= 0; i--) {
+                const proj = projectiles[i];
+                
+                // Add particle trail
+                if (Math.random() < 0.3) {
+                    particles.push(new Particle(
+                        proj.x * GRID_SIZE,
+                        proj.y * GRID_SIZE,
+                        '#ff6b00'
+                    ));
+                }
+                
+                proj.x += proj.dx;
+                proj.y += proj.dy;
+                proj.life--;
+                
+                // Check collision with walls
+                if (proj.x < 0 || proj.x >= COLS || proj.y < 0 || proj.y >= ROWS || proj.life <= 0) {
+                    createExplosion(proj.x * GRID_SIZE, proj.y * GRID_SIZE, '#ff6b00', 10);
+                    projectiles.splice(i, 1);
+                    continue;
+                }
+                
+                // Check collision with players
+                const projGridX = Math.floor(proj.x);
+                const projGridY = Math.floor(proj.y);
+                
+                if (player1.alive && Math.abs(projGridX - player1.x) < 1 && Math.abs(projGridY - player1.y) < 1) {
+                    player1.alive = false;
+                    player2.score++;
+                    createExplosion(player1.x * GRID_SIZE, player1.y * GRID_SIZE, player1.color, 30);
+                    playCrashSound();
+                    endGame('💥 HIT BY TANK - AI WINS! 💥');
+                    projectiles.splice(i, 1);
+                    continue;
+                }
+                
+                if (player2.alive && Math.abs(projGridX - player2.x) < 1 && Math.abs(projGridY - player2.y) < 1) {
+                    player2.alive = false;
+                    player1.score++;
+                    createExplosion(player2.x * GRID_SIZE, player2.y * GRID_SIZE, player2.color, 30);
+                    playCrashSound();
+                    endGame('🏆 AI HIT BY TANK - YOU WIN! 🏆');
+                    projectiles.splice(i, 1);
+                    continue;
+                }
+            }
+        }
+
+        // AI Logic
+        function aiMove(ai) {
+            if (!ai.alive || !ai.isAI) return;
+            
+            // Look ahead in current direction
+            const nextX = ai.x + ai.dx;
+            const nextY = ai.y + ai.dy;
+            
+            // Check if current path is dangerous
+            const isDangerous = (x, y) => {
+                if (x < 0 || x >= COLS || y < 0 || y >= ROWS) return true;
+                if (grid[y] && grid[y][x] !== 0) return true;
+                
+                // Look 2-3 steps ahead
+                for (let i = 1; i <= 3; i++) {
+                    const checkX = x + ai.dx * i;
+                    const checkY = y + ai.dy * i;
+                    if (checkX < 0 || checkX >= COLS || checkY < 0 || checkY >= ROWS) return true;
+                }
+                return false;
+            };
+            
+            if (isDangerous(nextX, nextY)) {
+                // Try to find safe direction
+                const directions = [
+                    { dx: 0, dy: -1 }, // up
+                    { dx: 0, dy: 1 },  // down
+                    { dx: -1, dy: 0 }, // left
+                    { dx: 1, dy: 0 }   // right
+                ];
+                
+                // Filter out reverse direction and dangerous paths
+                const safeDirs = directions.filter(dir => {
+                    // Can't reverse
+                    if (dir.dx === -ai.dx && dir.dy === -ai.dy) return false;
+                    
+                    const testX = ai.x + dir.dx;
+                    const testY = ai.y + dir.dy;
+                    return !isDangerous(testX, testY);
+                });
+                
+                if (safeDirs.length > 0) {
+                    // Choose direction that moves toward open space
+                    let bestDir = safeDirs[0];
+                    let maxSpace = 0;
+                    
+                    safeDirs.forEach(dir => {
+                        let space = 0;
+                        for (let i = 1; i <= 5; i++) {
+                            const checkX = ai.x + dir.dx * i;
+                            const checkY = ai.y + dir.dy * i;
+                            if (checkX >= 0 && checkX < COLS && checkY >= 0 && checkY < ROWS) {
+                                if (!grid[checkY] || grid[checkY][checkX] === 0) space++;
+                                else break;
+                            }
+                        }
+                        if (space > maxSpace) {
+                            maxSpace = space;
+                            bestDir = dir;
+                        }
+                    });
+                    
+                    ai.dx = bestDir.dx;
+                    ai.dy = bestDir.dy;
+                    playMoveSound();
+                }
+            }
+        }
+
+        // Draw grid lines with perspective depth
+        function drawGrid() {
+            // Perspective grid for 3D depth effect
+            ctx.strokeStyle = 'rgba(0, 217, 255, 0.15)';
+            ctx.lineWidth = 1;
+
+            // Vertical lines with perspective fade
+            for (let x = 0; x < COLS; x += 5) {
+                const normalizedX = x / COLS;
+                const distFromCenter = Math.abs(0.5 - normalizedX);
+                const perspectiveAlpha = 0.05 + (1 - distFromCenter) * 0.15;
+
+                const gradient = ctx.createLinearGradient(x * GRID_SIZE, 0, x * GRID_SIZE, canvas.height);
+                gradient.addColorStop(0, `rgba(0, 217, 255, ${perspectiveAlpha * 0.3})`);
+                gradient.addColorStop(0.3, `rgba(0, 217, 255, ${perspectiveAlpha})`);
+                gradient.addColorStop(0.7, `rgba(0, 217, 255, ${perspectiveAlpha})`);
+                gradient.addColorStop(1, `rgba(0, 217, 255, ${perspectiveAlpha * 0.5})`);
+                ctx.strokeStyle = gradient;
+
+                ctx.beginPath();
+                ctx.moveTo(x * GRID_SIZE, 0);
+                ctx.lineTo(x * GRID_SIZE, canvas.height);
+                ctx.stroke();
+            }
+
+            // Horizontal lines with stronger perspective
+            for (let y = 0; y < ROWS; y += 5) {
+                const normalizedY = y / ROWS;
+                const perspectiveAlpha = 0.05 + normalizedY * 0.15;
+
+                const gradient = ctx.createLinearGradient(0, y * GRID_SIZE, canvas.width, y * GRID_SIZE);
+                gradient.addColorStop(0, `rgba(0, 217, 255, ${perspectiveAlpha * 0.3})`);
+                gradient.addColorStop(0.5, `rgba(0, 217, 255, ${perspectiveAlpha})`);
+                gradient.addColorStop(1, `rgba(0, 217, 255, ${perspectiveAlpha * 0.3})`);
+                ctx.strokeStyle = gradient;
+
+                ctx.beginPath();
+                ctx.moveTo(0, y * GRID_SIZE);
+                ctx.lineTo(canvas.width, y * GRID_SIZE);
+                ctx.stroke();
+            }
+
+            // Glossy floor effect - subtle shine
+            const floorGradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            floorGradient.addColorStop(0, 'rgba(0, 50, 100, 0.02)');
+            floorGradient.addColorStop(0.5, 'rgba(0, 100, 150, 0.05)');
+            floorGradient.addColorStop(1, 'rgba(0, 20, 40, 0.03)');
+            ctx.fillStyle = floorGradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Subtle hex pattern overlay with perspective
+            const hexSize = 30;
+            ctx.lineWidth = 0.5;
+
+            for (let y = 0; y < canvas.height; y += hexSize * 1.5) {
+                const depthFactor = y / canvas.height;
+                const hexAlpha = 0.03 + depthFactor * 0.05;
+                ctx.strokeStyle = `rgba(0, 217, 255, ${hexAlpha})`;
+
+                for (let x = 0; x < canvas.width; x += hexSize * Math.sqrt(3)) {
+                    const offsetX = (y / (hexSize * 1.5)) % 2 === 0 ? 0 : hexSize * Math.sqrt(3) / 2;
+                    drawHexagon(x + offsetX, y, hexSize / 2);
+                }
+            }
+        }
+        
+        function drawHexagon(cx, cy, radius) {
+            ctx.beginPath();
+            for (let i = 0; i < 6; i++) {
+                const angle = (Math.PI / 3) * i;
+                const x = cx + radius * Math.cos(angle);
+                const y = cy + radius * Math.sin(angle);
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            ctx.closePath();
+            ctx.stroke();
+        }
+
+        // Draw tank with modern, super-sleek styling
+        function drawTank(tank) {
+            const x = tank.x * GRID_SIZE;
+            const y = tank.y * GRID_SIZE;
+            const size = tank.size * GRID_SIZE;
+            const centerX = x + size / 2;
+            const centerY = y + size / 2;
+            
+            // Outer glow aura
+            ctx.shadowBlur = 40;
+            ctx.shadowColor = '#ff6b00';
+            
+            // Base glow layer
+            const glowGradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, size / 2);
+            glowGradient.addColorStop(0, 'rgba(255, 107, 0, 0.4)');
+            glowGradient.addColorStop(1, 'rgba(255, 107, 0, 0)');
+            ctx.fillStyle = glowGradient;
+            ctx.fillRect(x - 5, y - 5, size + 10, size + 10);
+            
+            // Tank body - hexagonal shape
+            ctx.fillStyle = '#1a1a2e';
+            ctx.beginPath();
+            for (let i = 0; i < 6; i++) {
+                const angle = (Math.PI / 3) * i;
+                const px = centerX + Math.cos(angle) * (size / 2.5);
+                const py = centerY + Math.sin(angle) * (size / 2.5);
+                if (i === 0) ctx.moveTo(px, py);
+                else ctx.lineTo(px, py);
+            }
+            ctx.closePath();
+            ctx.fill();
+            
+            // Inner ring
+            ctx.strokeStyle = '#ff6b00';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, size / 3, 0, Math.PI * 2);
+            ctx.stroke();
+            
+            // Rotating turret indicator
+            const turretAngle = (Date.now() / 1000) % (Math.PI * 2);
+            ctx.strokeStyle = '#ffaa00';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(centerX, centerY);
+            ctx.lineTo(
+                centerX + Math.cos(turretAngle) * (size / 2.5),
+                centerY + Math.sin(turretAngle) * (size / 2.5)
+            );
+            ctx.stroke();
+            
+            // Core with pulsing effect
+            const pulse = Math.sin(Date.now() / 200) * 0.3 + 0.7;
+            ctx.shadowBlur = 30 * pulse;
+            ctx.fillStyle = `rgba(255, 150, 0, ${pulse})`;
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, 6, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.shadowBlur = 0;
+            
+            // Corner accents
+            const corners = [
+                [x + 5, y + 5],
+                [x + size - 5, y + 5],
+                [x + 5, y + size - 5],
+                [x + size - 5, y + size - 5]
+            ];
+            
+            ctx.fillStyle = '#ffaa00';
+            corners.forEach(corner => {
+                ctx.fillRect(corner[0] - 2, corner[1] - 2, 4, 4);
+            });
+            
+            // Outer frame
+            ctx.strokeStyle = '#ff6b00';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(x, y, size, size);
+        }
+
+        // Draw projectiles with advanced graphics
+        function drawProjectiles() {
+            projectiles.forEach(proj => {
+                const x = proj.x * GRID_SIZE;
+                const y = proj.y * GRID_SIZE;
+                
+                // Multiple glow layers for depth
+                ctx.shadowBlur = 30;
+                ctx.shadowColor = '#ff6b00';
+                
+                // Outer glow (largest)
+                const outerGradient = ctx.createRadialGradient(x, y, 0, x, y, 12);
+                outerGradient.addColorStop(0, 'rgba(255, 170, 0, 0.8)');
+                outerGradient.addColorStop(0.3, 'rgba(255, 107, 0, 0.6)');
+                outerGradient.addColorStop(1, 'rgba(255, 107, 0, 0)');
+                ctx.fillStyle = outerGradient;
+                ctx.beginPath();
+                ctx.arc(x, y, 12, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Mid glow
+                const midGradient = ctx.createRadialGradient(x, y, 0, x, y, 6);
+                midGradient.addColorStop(0, '#ffcc00');
+                midGradient.addColorStop(1, 'rgba(255, 107, 0, 0)');
+                ctx.fillStyle = midGradient;
+                ctx.beginPath();
+                ctx.arc(x, y, 6, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Core (brightest)
+                ctx.shadowBlur = 20;
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.arc(x, y, 3, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Ring effect
+                ctx.strokeStyle = 'rgba(255, 200, 0, 0.8)';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(x, y, 5, 0, Math.PI * 2);
+                ctx.stroke();
+                
+                ctx.shadowBlur = 0;
+            });
+        }
+
+        // Draw player with ultra-advanced graphics - LIGHT CYCLE
+        function drawPlayer(player) {
+            if (!player.alive) return;
+
+            // Draw smooth continuous light trail
+            if (player.trail.length > 1) {
+                // Draw trail as smooth connected segments
+                for (let i = 0; i < player.trail.length; i++) {
+                    const segment = player.trail[i];
+                    const alpha = 0.4 + (i / player.trail.length) * 0.6;
+                    const x = segment.x * GRID_SIZE + GRID_SIZE / 2;
+                    const y = segment.y * GRID_SIZE + GRID_SIZE / 2;
+
+                    // Enhanced outer glow for trails
+                    ctx.shadowBlur = 30 * alpha;
+                    ctx.shadowColor = player.color;
+
+                    const glowRadius = GRID_SIZE * 1.2;
+                    const outerGlow = ctx.createRadialGradient(x, y, 0, x, y, glowRadius);
+                    outerGlow.addColorStop(0, player.color + 'cc');
+                    outerGlow.addColorStop(0.5, player.color + '66');
+                    outerGlow.addColorStop(1, player.color + '00');
+                    ctx.fillStyle = outerGlow;
+                    ctx.beginPath();
+                    ctx.arc(x, y, glowRadius, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // Core light beam - continuous and smooth
+                    const coreGradient = ctx.createRadialGradient(x, y, 0, x, y, GRID_SIZE * 0.6);
+                    coreGradient.addColorStop(0, 'rgba(255, 255, 255, ' + (alpha * 0.8) + ')');
+                    coreGradient.addColorStop(0.3, player.color);
+                    coreGradient.addColorStop(1, player.color + 'aa');
+                    ctx.fillStyle = coreGradient;
+                    ctx.beginPath();
+                    ctx.arc(x, y, GRID_SIZE * 0.6, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // Connect segments with smooth lines
+                    if (i > 0) {
+                        const prevSegment = player.trail[i - 1];
+                        const px = prevSegment.x * GRID_SIZE + GRID_SIZE / 2;
+                        const py = prevSegment.y * GRID_SIZE + GRID_SIZE / 2;
+
+                        // Glowing connection line
+                        ctx.strokeStyle = player.color;
+                        ctx.lineWidth = GRID_SIZE * 1.2;
+                        ctx.shadowBlur = 25 * alpha;
+                        ctx.lineCap = 'round';
+                        ctx.lineJoin = 'round';
+
+                        const lineGradient = ctx.createLinearGradient(px, py, x, y);
+                        lineGradient.addColorStop(0, player.color + 'ee');
+                        lineGradient.addColorStop(1, player.color + 'ee');
+                        ctx.strokeStyle = lineGradient;
+
+                        ctx.beginPath();
+                        ctx.moveTo(px, py);
+                        ctx.lineTo(x, y);
+                        ctx.stroke();
+
+                        // Inner bright line
+                        ctx.strokeStyle = `rgba(255, 255, 255, ${alpha * 0.4})`;
+                        ctx.lineWidth = GRID_SIZE * 0.4;
+                        ctx.shadowBlur = 15 * alpha;
+                        ctx.beginPath();
+                        ctx.moveTo(px, py);
+                        ctx.lineTo(x, y);
+                        ctx.stroke();
+                    }
+                }
+            }
+
+            ctx.shadowBlur = 0;
+            ctx.lineCap = 'butt';
+            ctx.lineJoin = 'miter';
+
+            // Add particle trail effect
+            if (gameRunning && Math.random() < 0.4) {
+                particles.push(new Particle(
+                    player.x * GRID_SIZE + GRID_SIZE/2,
+                    player.y * GRID_SIZE + GRID_SIZE/2,
+                    player.color
+                ));
+            }
+            
+            // Draw LIGHT CYCLE with enhanced graphics
+            const cx = player.x * GRID_SIZE + GRID_SIZE / 2;
+            const cy = player.y * GRID_SIZE + GRID_SIZE / 2;
+
+            ctx.save();
+            ctx.translate(cx, cy);
+
+            // Rotate based on direction
+            let angle = 0;
+            if (player.dx > 0) angle = 0;
+            else if (player.dx < 0) angle = Math.PI;
+            else if (player.dy > 0) angle = Math.PI / 2;
+            else if (player.dy < 0) angle = -Math.PI / 2;
+            ctx.rotate(angle);
+
+            // Ultra-massive outer glow aura - ENHANCED
+            ctx.shadowBlur = 70;
+            ctx.shadowColor = player.color;
+
+            // Multi-layer aura for stronger glow
+            for (let layer = 0; layer < 3; layer++) {
+                const radius = 35 - (layer * 8);
+                const auraGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, radius);
+                auraGrad.addColorStop(0, player.color + (layer === 0 ? 'dd' : 'aa'));
+                auraGrad.addColorStop(0.5, player.color + (layer === 0 ? '88' : '55'));
+                auraGrad.addColorStop(1, player.color + '00');
+                ctx.fillStyle = auraGrad;
+                ctx.beginPath();
+                ctx.arc(0, 0, radius, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            
+            // Rear wheels with glow
+            ctx.shadowBlur = 20;
+            const wheelGrad = ctx.createRadialGradient(-8, 0, 0, -8, 0, 5);
+            wheelGrad.addColorStop(0, '#ffffff');
+            wheelGrad.addColorStop(0.5, player.color);
+            wheelGrad.addColorStop(1, player.color + '00');
+            ctx.fillStyle = wheelGrad;
+            ctx.beginPath();
+            ctx.arc(-8, 0, 5, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Main body - sleek design
+            const bodyGrad = ctx.createLinearGradient(-6, -6, 6, 6);
+            bodyGrad.addColorStop(0, player.color);
+            bodyGrad.addColorStop(0.5, player.color + 'dd');
+            bodyGrad.addColorStop(1, player.color);
+            ctx.fillStyle = bodyGrad;
+            ctx.fillRect(-6, -6, 14, 12);
+            
+            // Body highlights
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.fillRect(-4, -5, 12, 2);
+            ctx.fillRect(-4, 3, 12, 2);
+            
+            // Rider silhouette
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+            ctx.fillRect(-2, -5, 5, 10);
+            
+            // Canopy/windshield (ultra bright)
+            ctx.shadowBlur = 30;
+            const canopyGrad = ctx.createLinearGradient(2, -3, 8, 0);
+            canopyGrad.addColorStop(0, 'rgba(255, 255, 255, 0.9)');
+            canopyGrad.addColorStop(1, player.color + 'cc');
+            ctx.fillStyle = canopyGrad;
+            ctx.beginPath();
+            ctx.moveTo(2, -4);
+            ctx.lineTo(8, -2);
+            ctx.lineTo(8, 2);
+            ctx.lineTo(2, 4);
+            ctx.closePath();
+            ctx.fill();
+            
+            // Front headlight (super bright)
+            ctx.shadowBlur = 40;
+            ctx.shadowColor = '#ffffff';
+            const lightGrad = ctx.createRadialGradient(10, 0, 0, 10, 0, 5);
+            lightGrad.addColorStop(0, '#ffffff');
+            lightGrad.addColorStop(0.5, player.color);
+            lightGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+            ctx.fillStyle = lightGrad;
+            ctx.beginPath();
+            ctx.arc(10, 0, 5, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Front fairing
+            ctx.shadowBlur = 20;
+            ctx.fillStyle = player.color;
+            ctx.beginPath();
+            ctx.moveTo(8, -3);
+            ctx.lineTo(12, -2);
+            ctx.lineTo(12, 2);
+            ctx.lineTo(8, 3);
+            ctx.closePath();
+            ctx.fill();
+            
+            // Accent glow lines
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 1.5;
+            ctx.shadowBlur = 15;
+            ctx.beginPath();
+            ctx.moveTo(-6, 0);
+            ctx.lineTo(10, 0);
+            ctx.stroke();
+            
+            // Side panels with glow
+            ctx.strokeStyle = player.color;
+            ctx.lineWidth = 2;
+            ctx.shadowBlur = 10;
+            ctx.strokeRect(-4, -7, 12, 2);
+            ctx.strokeRect(-4, 5, 12, 2);
+            
+            ctx.restore();
+            ctx.shadowBlur = 0;
+        }
+
+        // Draw reflections on glossy floor
+        function drawReflections() {
+            ctx.save();
+            ctx.globalAlpha = 0.15;
+            ctx.globalCompositeOperation = 'lighter';
+
+            // Reflect player1 trail
+            if (player1.trail.length > 0) {
+                player1.trail.forEach((segment, index) => {
+                    const alpha = 0.3 + (index / player1.trail.length) * 0.4;
+                    const x = segment.x * GRID_SIZE + GRID_SIZE / 2;
+                    const y = segment.y * GRID_SIZE + GRID_SIZE / 2;
+
+                    const reflectionGrad = ctx.createRadialGradient(x, y, 0, x, y, GRID_SIZE * 0.8);
+                    reflectionGrad.addColorStop(0, player1.color + '88');
+                    reflectionGrad.addColorStop(1, player1.color + '00');
+                    ctx.fillStyle = reflectionGrad;
+                    ctx.beginPath();
+                    ctx.arc(x, y, GRID_SIZE * 0.8, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+            }
+
+            // Reflect player2 trail
+            if (player2.trail.length > 0) {
+                player2.trail.forEach((segment, index) => {
+                    const alpha = 0.3 + (index / player2.trail.length) * 0.4;
+                    const x = segment.x * GRID_SIZE + GRID_SIZE / 2;
+                    const y = segment.y * GRID_SIZE + GRID_SIZE / 2;
+
+                    const reflectionGrad = ctx.createRadialGradient(x, y, 0, x, y, GRID_SIZE * 0.8);
+                    reflectionGrad.addColorStop(0, player2.color + '88');
+                    reflectionGrad.addColorStop(1, player2.color + '00');
+                    ctx.fillStyle = reflectionGrad;
+                    ctx.beginPath();
+                    ctx.arc(x, y, GRID_SIZE * 0.8, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+            }
+
+            // Reflect light cycles
+            if (player1.alive) {
+                const x = player1.x * GRID_SIZE + GRID_SIZE / 2;
+                const y = player1.y * GRID_SIZE + GRID_SIZE / 2;
+                const cycleReflection = ctx.createRadialGradient(x, y, 0, x, y, 20);
+                cycleReflection.addColorStop(0, player1.color + 'aa');
+                cycleReflection.addColorStop(1, player1.color + '00');
+                ctx.fillStyle = cycleReflection;
+                ctx.beginPath();
+                ctx.arc(x, y, 20, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            if (player2.alive) {
+                const x = player2.x * GRID_SIZE + GRID_SIZE / 2;
+                const y = player2.y * GRID_SIZE + GRID_SIZE / 2;
+                const cycleReflection = ctx.createRadialGradient(x, y, 0, x, y, 20);
+                cycleReflection.addColorStop(0, player2.color + 'aa');
+                cycleReflection.addColorStop(1, player2.color + '00');
+                ctx.fillStyle = cycleReflection;
+                ctx.beginPath();
+                ctx.arc(x, y, 20, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Reflect tanks
+            tanks.forEach(tank => {
+                const x = (tank.x + tank.size / 2) * GRID_SIZE;
+                const y = (tank.y + tank.size / 2) * GRID_SIZE;
+                const tankReflection = ctx.createRadialGradient(x, y, 0, x, y, 25);
+                tankReflection.addColorStop(0, '#ff6b00' + '66');
+                tankReflection.addColorStop(1, '#ff6b00' + '00');
+                ctx.fillStyle = tankReflection;
+                ctx.beginPath();
+                ctx.arc(x, y, 25, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            ctx.restore();
+        }
+
+        // Check collision
+        function checkCollision(player) {
+            // Wall collision
+            if (player.x < 0 || player.x >= COLS || player.y < 0 || player.y >= ROWS) {
+                createExplosion(player.x * GRID_SIZE, player.y * GRID_SIZE, player.color, 30);
+                return true;
+            }
+
+            // Grid collision (trails and tanks)
+            const cellValue = grid[player.y][player.x];
+            if (cellValue !== 0) {
+                createExplosion(player.x * GRID_SIZE, player.y * GRID_SIZE, player.color, 30);
+                return true;
+            }
+
+            return false;
+        }
+
+        // Update game state
+        function update() {
+            if (!gameRunning) return;
+            
+            // Update tanks and projectiles
+            updateTanks();
+            updateProjectiles();
+            
+            // AI makes decision
+            aiMove(player2);
+            
+            // Move player 1
+            if (player1.alive) {
+                player1.trail.push({ x: player1.x, y: player1.y });
+                grid[player1.y][player1.x] = 1;
+                
+                player1.x += player1.dx;
+                player1.y += player1.dy;
+                
+                if (checkCollision(player1)) {
+                    player1.alive = false;
+                    player2.score++;
+                    playCrashSound();
+                    endGame('💥 GAME OVER - AI WINS! 💥');
+                }
+            }
+            
+            // Move player 2 (AI)
+            if (player2.alive) {
+                player2.trail.push({ x: player2.x, y: player2.y });
+                grid[player2.y][player2.x] = 2;
+                
+                player2.x += player2.dx;
+                player2.y += player2.dy;
+                
+                if (checkCollision(player2)) {
+                    player2.alive = false;
+                    player1.score++;
+                    playCrashSound();
+                    endGame('🏆 YOU WIN! 🏆');
+                }
+            }
+            
+            // Check for draw
+            if (!player1.alive && !player2.alive) {
+                playCrashSound();
+                endGame('💥 DOUBLE CRASH - DRAW! 💥');
+            }
+        }
+
+        // Draw everything with advanced graphics
+        function draw() {
+            // Clear canvas with enhanced gradient background
+            const gradient = ctx.createRadialGradient(
+                canvas.width / 2, canvas.height / 2, 0,
+                canvas.width / 2, canvas.height / 2, canvas.width / 2
+            );
+            gradient.addColorStop(0, '#002240');
+            gradient.addColorStop(0.4, '#001020');
+            gradient.addColorStop(0.7, '#000510');
+            gradient.addColorStop(1, '#000000');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Atmospheric haze for depth
+            const hazeGradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            hazeGradient.addColorStop(0, 'rgba(0, 50, 100, 0.03)');
+            hazeGradient.addColorStop(0.5, 'rgba(0, 30, 60, 0.05)');
+            hazeGradient.addColorStop(1, 'rgba(0, 10, 30, 0.08)');
+            ctx.fillStyle = hazeGradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Animated scan lines
+            const scanLineY = (Date.now() / 10) % canvas.height;
+            ctx.strokeStyle = 'rgba(0, 217, 255, 0.12)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(0, scanLineY);
+            ctx.lineTo(canvas.width, scanLineY);
+            ctx.stroke();
+
+            // Secondary scan line
+            const scanLine2Y = ((Date.now() / 10) + canvas.height / 2) % canvas.height;
+            ctx.strokeStyle = 'rgba(255, 0, 100, 0.08)';
+            ctx.beginPath();
+            ctx.moveTo(0, scanLine2Y);
+            ctx.lineTo(canvas.width, scanLine2Y);
+            ctx.stroke();
+
+            // Draw grid with perspective
+            drawGrid();
+
+            // Draw reflections on glossy floor BEFORE objects
+            drawReflections();
+
+            // Draw tanks
+            tanks.forEach(tank => drawTank(tank));
+
+            // Draw projectiles
+            drawProjectiles();
+
+            // Draw and update particles
+            updateParticles();
+            drawParticles();
+
+            // Draw players with enhanced visibility
+            drawPlayer(player1);
+            drawPlayer(player2);
+
+            // Enhanced vignette effect for 3D depth
+            const vignette = ctx.createRadialGradient(
+                canvas.width / 2, canvas.height / 2, canvas.width / 4,
+                canvas.width / 2, canvas.height / 2, canvas.width / 1.3
+            );
+            vignette.addColorStop(0, 'rgba(0, 0, 0, 0)');
+            vignette.addColorStop(0.7, 'rgba(0, 0, 0, 0.3)');
+            vignette.addColorStop(1, 'rgba(0, 0, 0, 0.7)');
+            ctx.fillStyle = vignette;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Subtle atmospheric fog near edges
+            const fogGradient = ctx.createRadialGradient(
+                canvas.width / 2, canvas.height / 2, 0,
+                canvas.width / 2, canvas.height / 2, canvas.width / 1.5
+            );
+            fogGradient.addColorStop(0, 'rgba(0, 20, 40, 0)');
+            fogGradient.addColorStop(0.8, 'rgba(0, 30, 60, 0.05)');
+            fogGradient.addColorStop(1, 'rgba(0, 40, 80, 0.15)');
+            ctx.fillStyle = fogGradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+
+        // Game loop
+        function gameLoopFunc() {
+            update();
+            draw();
+        }
+
+        // Start game
+        function startGame() {
+            gameRunning = true;
+            gameOverEl.style.display = 'none';
+            playStartSound();
+            
+            // Reset projectiles and particles
+            projectiles = [];
+            particles = [];
+            
+            // Reset players
+            player1.x = 20;
+            player1.y = 30;
+            player1.dx = 1;
+            player1.dy = 0;
+            player1.trail = [];
+            player1.alive = true;
+            
+            player2.x = 70;
+            player2.y = 30;
+            player2.dx = -1;
+            player2.dy = 0;
+            player2.trail = [];
+            player2.alive = true;
+            
+            // Reset grid and create tanks
+            initGrid();
+            createTanks();
+            
+            // Update scores
+            score1El.textContent = player1.score;
+            score2El.textContent = player2.score;
+            
+            // Start game loop
+            if (gameLoop) clearInterval(gameLoop);
+            gameLoop = setInterval(gameLoopFunc, GAME_SPEED);
+        }
+
+        // End game
+        function endGame(message) {
+            gameRunning = false;
+            clearInterval(gameLoop);
+            stopBackgroundMusic();
+            
+            gameOverEl.textContent = message;
+            gameOverEl.style.display = 'block';
+            
+            score1El.textContent = player1.score;
+            score2El.textContent = player2.score;
+        }
+
+        // Keyboard controls (Arrow keys only for single player)
+        document.addEventListener('keydown', (e) => {
+            if (!gameRunning) {
+                if (e.key === ' ') {
+                    e.preventDefault();
+                    startGame();
+                }
+                return;
+            }
+            
+            // Player 1 controls (Arrow keys)
+            if (e.key === 'ArrowUp' && player1.dy === 0) {
+                player1.dx = 0;
+                player1.dy = -1;
+                playMoveSound();
+            } else if (e.key === 'ArrowDown' && player1.dy === 0) {
+                player1.dx = 0;
+                player1.dy = 1;
+                playMoveSound();
+            } else if (e.key === 'ArrowLeft' && player1.dx === 0) {
+                player1.dx = -1;
+                player1.dy = 0;
+                playMoveSound();
+            } else if (e.key === 'ArrowRight' && player1.dx === 0) {
+                player1.dx = 1;
+                player1.dy = 0;
+                playMoveSound();
+            }
+            
+            // Start/restart game
+            if (e.key === ' ') {
+                e.preventDefault();
+                startGame();
+            }
+        });
+
+        // Click anywhere to enable audio context (browser requirement)
+        document.addEventListener('click', () => {
+            if (audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+        });
+
+        // Initial draw
+        initGrid();
+        createTanks();
+        draw();
+    </script>
+</body>
+</html>

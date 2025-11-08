@@ -33,11 +33,31 @@ It frames AI as a structured architecture: **compute and chips at the base**, **
     }
     main {
       flex: 1;
-      max-width: 900px;
+      max-width: 1400px;
       margin: auto;
       padding: 2rem;
       line-height: 1.7;
       font-size: 1.1rem;
+    }
+    .content-wrapper {
+      display: flex;
+      gap: 2rem;
+      align-items: flex-start;
+    }
+    .left-column {
+      flex: 0 0 350px;
+    }
+    .right-column {
+      flex: 1;
+    }
+    @media (max-width: 900px) {
+      .content-wrapper {
+        flex-direction: column;
+      }
+      .left-column {
+        flex: 1;
+        width: 100%;
+      }
     }
     .section {
       margin-bottom: 2.5rem;
@@ -46,6 +66,35 @@ It frames AI as a structured architecture: **compute and chips at the base**, **
     }
     .section h2 {
       margin-top: 0;
+    }
+    .games-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.8rem;
+    }
+    .game-card {
+      background-color: #202020;
+      border-radius: 0.7rem;
+      padding: 1rem 1.2rem;
+      border: 1px solid #333333;
+      transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+      display: block;
+      color: inherit;
+    }
+    .game-card:hover {
+      transform: translateX(4px);
+      box-shadow: 0 4px 16px rgba(0, 181, 201, 0.3);
+      border-color: #00B5C9;
+    }
+    .game-name {
+      font-weight: 600;
+      margin-bottom: 0.3rem;
+      color: #F5EBDD;
+      font-size: 1.05rem;
+    }
+    .game-description {
+      font-size: 0.85rem;
+      color: #9ADAE8;
     }
     footer {
       text-align: center;
@@ -107,11 +156,44 @@ It frames AI as a structured architecture: **compute and chips at the base**, **
   </header>
 
   <main>
-    <section class="section">
-      <h2>Providers and tools</h2>
-      <p>A compact map of key actors across the AI ecosystem, each represented with its logo and link.</p>
+    <div class="content-wrapper">
+      <!-- Left Column: AI Games -->
+      <div class="left-column">
+        <section class="section">
+          <h2>AI Games & Interactive 3D</h2>
+          <p>Explore interactive 3D experiences and games.</p>
 
-      <div class="providers-grid">
+          <div class="games-list">
+            <a class="game-card" href="light_cycles_v2.html" target="_blank" rel="noopener noreferrer">
+              <div class="game-name">Light Cycles</div>
+              <div class="game-description">Classic TRON-style light cycle racing</div>
+            </a>
+
+            <a class="game-card" href="light_cycles_v2_cursor.html" target="_blank" rel="noopener noreferrer">
+              <div class="game-name">Light Cycles Cursor</div>
+              <div class="game-description">Enhanced light cycle experience</div>
+            </a>
+
+            <a class="game-card" href="neon_light_cycle_duel.html" target="_blank" rel="noopener noreferrer">
+              <div class="game-name">Neon Light Cycle Duel</div>
+              <div class="game-description">Multiplayer neon cycle battles</div>
+            </a>
+
+            <a class="game-card" href="recognizer codex_fixed.html" target="_blank" rel="noopener noreferrer">
+              <div class="game-name">Recognizer</div>
+              <div class="game-description">Interactive 3D recognizer experience</div>
+            </a>
+          </div>
+        </section>
+      </div>
+
+      <!-- Right Column: Providers -->
+      <div class="right-column">
+        <section class="section">
+          <h2>Providers and tools</h2>
+          <p>A compact map of key actors across the AI ecosystem, each represented with its logo and link.</p>
+
+          <div class="providers-grid">
         <!-- Model providers -->
         <a class="provider-card" href="https://www.openai.com" target="_blank" rel="noopener noreferrer">
           <img src="openai.png.png" alt="OpenAI logo" class="provider-logo" />
@@ -188,8 +270,10 @@ It frames AI as a structured architecture: **compute and chips at the base**, **
           <div class="provider-name">Microsoft Copilot</div>
           <div class="provider-category">Assistant across Microsoft ecosystem</div>
         </a>
+          </div>
+        </section>
       </div>
-    </section>
+    </div>
   </main>
 
   <footer>
