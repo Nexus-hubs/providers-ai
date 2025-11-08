@@ -163,9 +163,52 @@ It frames AI as a structured architecture: **compute and chips at the base**, **
       color: #9ADAE8;
       margin-bottom: 0.3rem;
     }
+    /* Star decorations */
+    .star-decoration {
+      position: fixed;
+      z-index: 1;
+      pointer-events: none;
+      opacity: 0.2;
+    }
+    .star-small {
+      top: 15px;
+      right: 25px;
+      width: 28px;
+      height: 28px;
+    }
+    .star-large {
+      top: 15px;
+      left: 25px;
+      width: 35px;
+      height: 35px;
+      opacity: 0.15;
+    }
+    @media (max-width: 768px) {
+      .star-small {
+        width: 20px;
+        height: 20px;
+        top: 10px;
+        right: 15px;
+      }
+      .star-large {
+        width: 25px;
+        height: 25px;
+        top: 10px;
+        left: 15px;
+      }
+    }
   </style>
 </head>
 <body>
+  <!-- Star decorations -->
+  <svg class="star-decoration star-small" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+    <path d="M16 4 L18 14 L28 16 L18 18 L16 28 L14 18 L4 16 L14 14 Z" fill="#00B5C9"/>
+  </svg>
+
+  <svg class="star-decoration star-large" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+    <path d="M16 6 L17.5 14 L26 16 L17.5 18 L16 26 L14.5 18 L6 16 L14.5 14 Z" fill="#00B5C9"/>
+  </svg>
+
   <header>
     <h1>AI Stack Overview</h1>
   </header>
