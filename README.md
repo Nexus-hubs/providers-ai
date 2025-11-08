@@ -1,2 +1,2 @@
-# providers-ai
-Providers AI is an open-web blog exploring AI from model providers to infrastructure. Built on GitHub, it shares short insights, and experiments, as a public infromation source and lab for transparent, evolving AI innovation.
+# AI Stack Overview
+AI Stack Overview represents a layered ecosystem of technologies that power modern artificial intelligence, from foundational model developers to the infrastructure, interfaces, and tools that bring AI into real-world workflow.
