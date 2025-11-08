@@ -3,8 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="Providers AI — an open-web, interactive blog exploring AI from model providers to infrastructure." />
-  <meta name="keywords" content="AI, artificial intelligence, model providers, infrastructure, GitHub Pages, multi-agent systems, MCP" />
+  <meta name="description" content="Providers AI — an open web blog exploring AI from model providers to infrastructure." />
   <meta name="author" content="Providers AI" />
   <title>Providers AI</title>
   <style>
@@ -16,7 +15,6 @@
       display: flex;
       flex-direction: column;
       min-height: 100vh;
-      transition: background 0.3s ease;
     }
     header {
       text-align: center;
@@ -26,7 +24,6 @@
       color: #00B5C9;
       font-size: 2.5rem;
       letter-spacing: 1px;
-      transition: color 0.3s ease;
     }
     header p {
       color: #9ADAE8;
@@ -40,9 +37,12 @@
       font-size: 1.1rem;
     }
     .section {
-      margin-bottom: 2rem;
+      margin-bottom: 2.5rem;
       border-left: 3px solid #00B5C9;
       padding-left: 1rem;
+    }
+    .section h2 {
+      margin-top: 0;
     }
     footer {
       text-align: center;
@@ -58,27 +58,137 @@
     a:hover {
       text-decoration: underline;
     }
+    .providers-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1rem;
+      margin-top: 1.2rem;
+    }
+    .provider-card {
+      background-color: #202020;
+      border-radius: 0.7rem;
+      padding: 1rem 1.1rem;
+      border: 1px solid #333333;
+      transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+      text-align: center;
+    }
+    .provider-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6);
+      border-color: #00B5C9;
+    }
+    .provider-logo {
+      width: 100px;
+      max-width: 100%;
+      display: block;
+      margin: 0 auto 0.6rem;
+    }
+    .provider-name {
+      font-weight: 600;
+      margin-bottom: 0.2rem;
+      color: #F5EBDD;
+    }
+    .provider-category {
+      font-size: 0.9rem;
+      color: #9ADAE8;
+      margin-bottom: 0.3rem;
+    }
   </style>
 </head>
 <body>
   <header>
     <h1>Providers AI</h1>
-    <p>Exploring AI from model providers to infrastructure — interactive, open, evolving.</p>
+    <p>Exploring AI from model providers to infrastructure.</p>
   </header>
 
   <main>
     <section class="section">
-      <h2>About</h2>
-      <p>
-        Providers AI is an open-web blog exploring AI systems from model providers
-        to full-scale infrastructure. Built on GitHub Pages, it serves as a transparent lab for
-        evolving innovation.
-      </p>
+      <h2>Providers and tools</h2>
+      <p>A compact map of key actors across the AI ecosystem, each represented with its logo and link.</p>
+
+      <div class="providers-grid">
+        <!-- Model providers -->
+        <div class="provider-card">
+          <img src="openai.png.png" alt="OpenAI logo" class="provider-logo" />
+          <div class="provider-name">OpenAI</div>
+          <div class="provider-category">AI model provider</div>
+        </div>
+
+        <div class="provider-card">
+          <img src="anthropic.png.webp" alt="Anthropic Claude logo" class="provider-logo" />
+          <div class="provider-name">Anthropic (Claude)</div>
+          <div class="provider-category">AI model provider</div>
+        </div>
+
+        <div class="provider-card">
+          <img src="gemini.png.png" alt="Gemini logo" class="provider-logo" />
+          <div class="provider-name">Google DeepMind (Gemini)</div>
+          <div class="provider-category">AI model provider</div>
+        </div>
+
+        <div class="provider-card">
+          <img src="grok.png" alt="Grok logo" class="provider-logo" />
+          <div class="provider-name">xAI (Grok)</div>
+          <div class="provider-category">AI model provider</div>
+        </div>
+
+        <!-- Infrastructure / hardware -->
+        <div class="provider-card">
+          <img src="cerebras.png.png" alt="Cerebras logo" class="provider-logo" />
+          <div class="provider-name">Cerebras Systems</div>
+          <div class="provider-category">Infrastructure & hardware</div>
+        </div>
+
+        <!-- Experiment tracking / platforms -->
+        <div class="provider-card">
+          <img src="comet.png.webp" alt="Comet logo" class="provider-logo" />
+          <div class="provider-name">Comet ML</div>
+          <div class="provider-category">Experiment tracking & observability</div>
+        </div>
+
+        <div class="provider-card">
+          <img src="cursor.png.png" alt="Cursor logo" class="provider-logo" />
+          <div class="provider-name">Cursor AI</div>
+          <div class="provider-category">AI coding environment</div>
+        </div>
+
+        <div class="provider-card">
+          <img src="windsurf.png" alt="Windsurf logo" class="provider-logo" />
+          <div class="provider-name">Windsurf IDE</div>
+          <div class="provider-category">AI assisted IDE</div>
+        </div>
+
+        <!-- Ecosystem / hubs -->
+        <div class="provider-card">
+          <img src="huggingface.png.png" alt="Hugging Face logo" class="provider-logo" />
+          <div class="provider-name">Hugging Face</div>
+          <div class="provider-category">Model hub & datasets</div>
+        </div>
+
+        <div class="provider-card">
+          <img src="github.png" alt="GitHub logo" class="provider-logo" />
+          <div class="provider-name">GitHub</div>
+          <div class="provider-category">Code hosting & collaboration</div>
+        </div>
+
+        <!-- Assistants -->
+        <div class="provider-card">
+          <img src="Copilot.webp" alt="GitHub Copilot logo" class="provider-logo" />
+          <div class="provider-name">GitHub Copilot</div>
+          <div class="provider-category">AI pair programmer</div>
+        </div>
+
+        <div class="provider-card">
+          <img src="microsoft-copilot.png.jpg" alt="Microsoft Copilot logo" class="provider-logo" />
+          <div class="provider-name">Microsoft Copilot</div>
+          <div class="provider-category">Assistant across Microsoft ecosystem</div>
+        </div>
+      </div>
     </section>
   </main>
 
   <footer>
-    © 2025 Providers AI — Powered by GitHub Pages
+    © 2025 Providers AI, powered by GitHub Pages
   </footer>
 </body>
 </html>
